@@ -87,6 +87,91 @@ def tailcuts_clean(
         )
 
 
+def tailcut_doubleBoundary(
+    geom,
+    image,
+    picture_thresh=float("-inf"),
+    boundary_thresh=(float("-inf"), float("-inf")),
+    keep_isolated_pixels=False,
+    min_number_picture_neighbors=0,
+):
+    """
+    Clean an image by selecting pixels that pass a three-threshold tail-cut
+    procedure.
+    All thresholds are defined with respect to the pedestal dispersion.
+    Pixels to be retained are those with signal higher than:
+    - the picture threshold (core pixels),
+    - the first boundary threshold if neighbors of a core pixel,
+    - the second boundary threshold if neighbors of neighbor of a core pixel.
+    All thresholds default to negative Infinity for testing purposes.
+    Note: CTA-MARS 1st pass cleaning corresponds to this method whenever two
+    boundary thresholds are the same.
+
+    Parameters
+    ----------
+    geom: `ctapipe.instrument.CameraGeometry`
+        Camera geometry information
+    image: array
+        pixel values
+    picture_thresh: float
+        threshold above which core pixels are retained
+    boundary_thresh: bi-dimensional tuple
+        The first value is the threshold above which pixels are retained if
+        they have a neighbor already above the picture_thresh,
+        The second value is applied iteratively to the neighbor of the neighbor
+    keep_isolated_pixels: bool
+        If True, pixels above the picture_thresh will be included always
+        If False, they are only included if a they have a surviving neighbor
+    min_number_picture_neighbors: int
+        A picture pixel survives cleaning only if it has at least this number
+        of picture neighbors.
+        This has no effect in case keep_isolated_pixels is True
+
+    Returns
+    -------
+    A boolean mask of *clean* pixels.  To get a zero-suppressed image and pixel
+    list, use `image[mask], geom.pix_id[mask]`, or to keep the same
+    image size and just set unclean pixels to 0 or similar, use
+    `image[~mask] = 0`
+
+    """
+
+    # First we select core pixels and any of their first neighbors
+    pixels_from_tailcuts_clean = tailcuts_clean(
+        geom,
+        image,
+        picture_thresh,
+        boundary_thresh[0],
+        keep_isolated_pixels,
+        min_number_picture_neighbors,
+    )
+
+    # We don't know yet which are the neighbors of neighbors that would survive.
+    # In principle, pixel thresholds should be generally hierarchical from core
+    # to boundaries.
+
+    # We check which pixels have a signal above the second boundary threshold in
+    # the same image, but starting from the mask we got from 'tailcuts_clean'.
+    pixels_above_2nd_boundary = image >= boundary_thresh[1]
+
+    # From here it's the same as the last part of 'tailcuts_clean', but without
+    # the core pixels: we start from the neighbors of the core pixels.
+    pixels_with_previous_neighbors = geom.neighbor_matrix_sparse.dot(
+        pixels_from_tailcuts_clean
+    )
+    if keep_isolated_pixels:
+        return (
+            pixels_above_2nd_boundary & pixels_with_previous_neighbors
+        ) | pixels_from_tailcuts_clean
+    else:
+        pixels_with_2ndboundary_neighbors = geom.neighbor_matrix_sparse.dot(
+            pixels_above_2nd_boundary
+        )
+        return (pixels_above_2nd_boundary & pixels_with_previous_neighbors) | (
+            pixels_from_tailcuts_clean & pixels_with_2ndboundary_neighbors
+        )
+
+
 def mars_cleaning_1st_pass(
     geom,
     image,
