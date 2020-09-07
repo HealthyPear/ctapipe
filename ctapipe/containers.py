@@ -101,18 +101,18 @@ class TelEventIndexContainer(Container):
     tel_id = Field(0, "telescope identifier")
 
 
-class HillasParametersContainer(Container):
+class HillasParametersContainer(Container, unit=u.m):
     container_prefix = "hillas"
 
     intensity = Field(nan, "total intensity (size)")
 
-    x = Field(nan * u.m, "centroid x coordinate", unit=u.m)
-    y = Field(nan * u.m, "centroid x coordinate", unit=u.m)
-    r = Field(nan * u.m, "radial coordinate of centroid", unit=u.m)
+    x = Field(nan * unit, "centroid x coordinate", unit=unit)
+    y = Field(nan * unit, "centroid x coordinate", unit=unit)
+    r = Field(nan * unit, "radial coordinate of centroid", unit=unit)
     phi = Field(nan * u.deg, "polar coordinate of centroid", unit=u.deg)
 
-    length = Field(nan * u.m, "standard deviation along the major-axis", unit=u.m)
-    width = Field(nan * u.m, "standard spread along the minor-axis", unit=u.m)
+    length = Field(nan * unit, "standard deviation along the major-axis", unit=unit)
+    width = Field(nan * unit, "standard spread along the minor-axis", unit=unit)
     psi = Field(nan * u.deg, "rotation angle of ellipse", unit=u.deg)
 
     skewness = Field(nan, "measure of the asymmetry")
